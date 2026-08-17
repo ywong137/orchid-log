@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+
+<div class="card">
+  <h2 style="margin-top:0">Profile</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="profile">
+    <label>Username</label>
+    <input type="text" value="{{ session.user }}" disabled>
+    <label>Display name</label>
+    <input type="text" name="display_name" value="{{ session.display_name }}">
+    <div style="margin-top:12px"><button type="submit">Save profile</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Change password</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="password">
+    <label>Current password</label>
+    <input type="password" name="current" required>
+    <label>New password</label>
+    <input type="password" name="new" required>
+    <label>Confirm new password</label>
+    <input type="password" name="confirm" required>
+    <div style="margin-top:12px"><button type="submit">Change password</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Account</h2>
+  <a class="btn ghost" href="{{ url_for('manage_users') }}">Manage users</a>
+  <a class="btn danger" href="{{ url_for('logout') }}" style="margin-left:8px">Log out</a>
+</div>
+{% endblock %}

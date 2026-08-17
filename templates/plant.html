@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}#{{ plant.number or '–' }} {{ plant.name }}{% endblock %}
+{% block content %}
+<div class="topnav">
+  <a href="{{ url_for('index') }}">← Collection</a>
+  <span class="spacer" style="flex:1"></span>
+  <a class="btn small ghost" href="{{ url_for('plant_edit', plant_id=plant.id) }}">Edit</a>
+  <a class="btn small" href="{{ url_for('upload') }}">+ Photo</a>
+</div>
+
+{% if plant.needs_review %}
+<div class="card review-flag">
+  <div class="review-flag-top">
+    <div>⚑ <b>Needs review</b>{% if plant.review_note %}: {{ plant.review_note }}{% endif %}</div>
+    <form method="post" action="{{ url_for('review_clear', plant_id=plant.id) }}">
+      <button class="small ghost" type="submit">Mark resolved</button>
+    </form>
+  </div>
+  {% if review_imgs %}
+  <div class="review-pages">
+    <div class="meta">Source page photos (tap to zoom):</div>
+    {% for im in review_imgs %}
+    <a href="{{ url_for('review_img_full', name=im) }}" target="_blank">
+      <img src="{{ url_for('review_img', name=im) }}" loading="lazy" alt="{{ im }}">
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div style="display:flex;gap:12px;align-items:center">
+    <span class="tagno" style="background:{{ plant.genus_color or '#999' }}">{{ plant.number or '–' }}</span>
+    <div>
+      <h1>{{ plant.name or 'Unnamed' }}</h1>
+      <div class="sub">{{ plant.genus_name or 'Unknown genus' }}
+        {% if plant.location %} · 📍 {{ plant.location }}{% endif %}</div>
+    </div>
+  </div>
+  {% if hero %}
+  <img class="hero" style="margin-top:10px" id="heroImg"
+       src="{{ url_for('uploaded_file', filename=hero.filename) }}">
+  <div class="sub" style="margin-top:4px">★ headline photo · tap to view</div>
+  {% if photos|length > 1 %}
+  <div class="thumb-strip">
+    {% for ph in photos if ph.id != hero.id %}
+    <img class="lbopen" src="{{ url_for('uploaded_file', filename=ph.filename) }}"
+         data-fn="{{ ph.filename }}">
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endif %}
+  {% if plant.notes %}<p style="margin-bottom:0">{{ plant.notes }}</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Care profile</h2>
+  <div class="care-grid">
+    <div class="care-item"><div class="k">Sun</div>{{ prof.sun or '—' }}</div>
+    <div class="care-item"><div class="k">Medium</div>{{ prof.medium or '—' }}</div>
+    <div class="care-item {{ 'current' if season == 'spring' }}"><div class="k">Spring/summer water</div>{{ prof.water or '—' }}</div>
+    <div class="care-item {{ 'current' if season == 'fall' }}"><div class="k">Fall/winter water</div>{{ prof.fall_water or '—' }}</div>
+    <div class="care-item {{ 'current' if season == 'spring' }}"><div class="k">Spring/summer fertilizer</div>{{ prof.fertilize or '—' }}</div>
+    <div class="care-item {{ 'current' if season == 'fall' }}"><div class="k">Fall/winter fertilizer</div>{{ prof.fall_fertilize or '—' }}</div>
+    <div class="care-item"><div class="k">Trimming</div>{{ prof.trimming or '—' }}</div>
+    <div class="care-item"><div class="k">Fall trim</div>{{ prof.fall_trim or '—' }}</div>
+  </div>
+  {% if prof.notes %}<p class="sub" style="margin-bottom:0">{{ prof.notes }}</p>{% endif %}
+</div>
+
+<div class="card" id="add">
+  <h2 style="margin-top:0">Add log entry</h2>
+  <form method="post" action="{{ url_for('entry_add', plant_id=plant.id) }}">
+    <label>Date</label>
+    <input type="date" name="date" value="{{ today }}" required>
+    <div class="checks" style="margin-top:10px">
+      <label><input type="checkbox" name="watered" checked> Watered</label>
+      <label><input type="checkbox" name="fertilized"> Fertilized</label>
+    </div>
+    <div class="checks">
+      {% for t in event_tags %}
+      <label><input type="checkbox" name="events" value="{{ t }}"> {{ t }}</label>
+      {% endfor %}
+    </div>
+    <label>Condition</label>
+    <input type="text" name="condition" placeholder="e.g. doing great, leaves perky">
+    <label>Trimming / notes</label>
+    <input type="text" name="trimming" placeholder="e.g. cut spike to node">
+    <div style="margin-top:12px"><button type="submit">Save entry</button></div>
+  </form>
+</div>
+
+<h2 id="log">Log ({{ entries|length }})</h2>
+{% for e in entries %}
+<div class="card entry" style="border-left-width:3px;border-left-style:solid">
+  <div class="date">{{ e.date }}
+    <span class="flags">
+      {% if e.watered %}· 💧 watered{% endif %}
+      {% if e.fertilized %}· 🌱 fertilized{% endif %}
+      {% for t in e.events.split(',') if t %}<span class="evtag">{{ t }}</span>{% endfor %}
+    </span>
+  </div>
+  {% if e.condition %}<div class="cond">{{ e.condition }}</div>{% endif %}
+  {% if e.trimming %}<div class="trim">{{ e.trimming }}</div>{% endif %}
+  {% for ph in entry_photos.get(e.id, []) %}
+    <img src="{{ url_for('uploaded_file', filename=ph.filename) }}" style="max-width:140px;border-radius:8px;margin-top:6px">
+  {% endfor %}
+  <form method="post" action="{{ url_for('entry_delete', entry_id=e.id) }}" style="margin-top:6px"
+        onsubmit="return confirm('Delete this entry?')">
+    <button class="small danger" style="opacity:.7">delete</button>
+  </form>
+</div>
+{% endfor %}
+{% if not entries %}<div class="card sub">No entries yet.</div>{% endif %}
+
+<h2 id="photos">Photos ({{ photos|length }})</h2>
+<div class="card">
+  <div class="gallery">
+    {% for ph in photos %}
+    <div>
+      <img class="lbopen" src="{{ url_for('uploaded_file', filename=ph.filename) }}"
+           data-fn="{{ ph.filename }}">
+      <div class="cap">
+        {% if ph.is_headline %}★ {% endif %}{{ ph.taken_at or ph.created_at[:10] }}{% if ph.caption %} · {{ ph.caption }}{% endif %}
+      </div>
+      <div class="ph-actions">
+        {% if not ph.is_headline %}
+        <form method="post" action="{{ url_for('photo_headline', photo_id=ph.id) }}">
+          <button class="small ghost" title="Make headline photo">★ headline</button>
+        </form>
+        {% endif %}
+        <a class="btn small ghost" href="{{ url_for('photo_move', photo_id=ph.id) }}">move</a>
+        <form method="post" action="{{ url_for('photo_delete', photo_id=ph.id) }}"
+              onsubmit="return confirm('Delete this photo?')">
+          <button class="small danger" style="opacity:.7">delete</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if not photos %}<span class="sub">No photos yet. <a href="{{ url_for('upload') }}">Upload one</a>.</span>{% endif %}
+</div>
+
+<div class="lb" id="lb">
+  <button class="lb-x" id="lbX">×</button>
+  <button class="lb-nav lb-prev" id="lbPrev">‹</button>
+  <img id="lbImg">
+  <button class="lb-nav lb-next" id="lbNext">›</button>
+  <div class="lb-cap" id="lbCap"></div>
+</div>
+<script>
+const PHOTOS = [
+  {% for ph in photos %}
+  {src: {{ url_for('uploaded_file', filename=ph.filename) | tojson }},
+   cap: {{ ((('★ ' if ph.is_headline) ~ (ph.taken_at or ph.created_at[:10]) ~ (' · ' ~ ph.caption if ph.caption else '')) | tojson) }}},
+  {% endfor %}
+];
+const lb = document.getElementById('lb');
+const lbImg = document.getElementById('lbImg');
+const lbCap = document.getElementById('lbCap');
+let cur = 0;
+
+function lbOpen(i) {
+  if (!PHOTOS.length) return;
+  cur = (i + PHOTOS.length) % PHOTOS.length;
+  lbImg.src = PHOTOS[cur].src;
+  lbCap.textContent = PHOTOS[cur].cap;
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function lbClose() {
+  lb.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.getElementById('lbX').addEventListener('click', lbClose);
+document.getElementById('lbPrev').addEventListener('click', () => lbOpen(cur - 1));
+document.getElementById('lbNext').addEventListener('click', () => lbOpen(cur + 1));
+lb.addEventListener('click', (e) => { if (e.target === lb) lbClose(); });
+document.addEventListener('keydown', (e) => {
+  if (!lb.classList.contains('open')) return;
+  if (e.key === 'Escape') lbClose();
+  if (e.key === 'ArrowLeft') lbOpen(cur - 1);
+  if (e.key === 'ArrowRight') lbOpen(cur + 1);
+});
+document.querySelectorAll('.lbopen').forEach(img =>
+  img.addEventListener('click', () => {
+    const i = PHOTOS.findIndex(p => p.src.endsWith('/' + img.dataset.fn));
+    lbOpen(i >= 0 ? i : 0);
+  }));
+const heroImg = document.getElementById('heroImg');
+if (heroImg) heroImg.addEventListener('click', () => {
+  const i = PHOTOS.findIndex(p => heroImg.src.endsWith(p.src.split('/').pop()));
+  lbOpen(i >= 0 ? i : 0);
+});
+</script>
+{% endblock %}

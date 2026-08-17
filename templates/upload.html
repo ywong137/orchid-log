@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Add photos{% endblock %}
+{% block content %}
+<h1>Add photos</h1>
+<div class="card">
+<form method="post" enctype="multipart/form-data">
+  <label>Photos (pick one or many)</label>
+  <input type="file" name="photos" accept="image/*" multiple required>
+  <div style="margin-top:14px"><button type="submit">Upload &amp; analyze</button></div>
+</form>
+</div>
+
+{% if cards %}
+<h2 id="pending">Waiting for review ({{ cards|length }})</h2>
+{% for c in cards %}
+{% set st = c.st %}{% set a = c.a %}
+<div class="card review" id="card-{{ st.id }}">
+  <div class="review-top">
+    <img class="review-img" src="{{ url_for('uploaded_file', filename=st.filename) }}">
+    <div class="verdict">
+      {% if not a %}
+      <span class="spin">K3 is analyzing this photo…<br>
+      <small>It'll show up here when ready — no need to wait on this page.</small></span>
+      {% elif a.error %}
+      <span class="warn">K3 couldn't analyze this one ({{ a.error }}). Attach it manually below.</span>
+      {% elif a.matched_plant %}
+      <b>{{ 'I think this is' if a.raw.confidence == 'high' else 'This might be' }}
+        #{{ a.matched_plant.number }} {{ a.matched_plant.name }}</b> — confirm or change below.
+      {% else %}
+      <b>Looks like a new plant.</b>
+      {% if a.raw.guess_genus or a.raw.guess_name %}<div class="vline">
+        Best guess: {{ a.raw.guess_genus or '' }} {{ a.raw.guess_name or '' }}</div>{% endif %}
+      {% endif %}
+      {% if a and not a.error %}
+        {% if a.raw.overlaid_text %}<div class="vline">Read overlaid text: “{{ a.raw.overlaid_text }}”</div>{% endif %}
+        {% if a.raw.tag_number and not a.matched_plant %}
+        <div class="vline">Saw tag #{{ a.raw.tag_number }} (not in your collection yet)</div>{% endif %}
+        {% if a.raw.condition %}<div class="vline">Condition: {{ a.raw.condition }}</div>{% endif %}
+      {% endif %}
+    </div>
+  </div>
+  {% if a and not a.error and not a.matched_plant %}
+  <div style="margin:10px 0">
+    <a class="btn" href="{{ c.prefill }}">Add as new plant →</a>
+    <div class="sub" style="margin-top:4px">Pre-filled from the photo — you'll confirm details on the Add Plant page.</div>
+  </div>
+  <details style="margin-top:6px">
+    <summary class="sub">Actually, it belongs to an existing plant</summary>
+  {% endif %}
+  {% if a %}
+  <form id="form-{{ st.id }}" method="post" action="{{ url_for('upload_commit', sid=st.id) }}">
+    <label>Plant</label>
+    <select name="plant_id">
+      <option value="">— choose —</option>
+      {% for p in plants %}
+      <option value="{{ p.id }}" {{ 'selected' if a.matched_plant and a.matched_plant.id == p.id }}>
+        {{ '#' ~ p.number ~ ' ' if p.number }}{{ p.name }} ({{ p.genus_name or '?' }})
+      </option>
+      {% endfor %}
+    </select>
+    <label>Caption (optional)</label>
+    <input type="text" name="caption" value="{{ a.raw.caption or '' if a.raw }}">
+    <label>Date taken (optional)</label>
+    <input type="date" name="taken_at">
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button type="submit">Save photo</button>
+      <button type="button" class="btn danger" style="opacity:.75"
+              onclick="discard({{ st.id }})">Discard</button>
+    </div>
+  </form>
+  {% endif %}
+  {% if a and not a.error and not a.matched_plant %}</details>{% endif %}
+</div>
+{% endfor %}
+<script>
+let dirty = false;
+document.querySelectorAll('.review input, .review select').forEach(el =>
+  el.addEventListener('input', () => dirty = true));
+
+async function poll() {
+  const pendings = [...document.querySelectorAll('.review')].length;
+  if (!pendings) return;
+  try {
+    const r = await fetch('/api/staged');
+    const list = await r.json();
+    const stillPending = list.filter(s => s.pending).length;
+    const rendered = document.querySelectorAll('.spin').length;
+    if (stillPending < rendered && !dirty) {
+      location.reload();
+      return;
+    }
+  } catch (e) { /* retry next tick */ }
+  setTimeout(poll, 4000);
+}
+if (document.querySelector('.spin')) setTimeout(poll, 4000);
+
+async function discard(id) {
+  if (!confirm('Discard this photo?')) return;
+  const fd = new FormData();
+  fd.append('ajax', '1');
+  await fetch('/upload/discard/' + id, {method: 'POST', body: fd});
+  document.getElementById('card-' + id).remove();
+}
+
+document.querySelectorAll('form[id^="form-"]').forEach(f => {
+  const id = f.id.split('-')[1];
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = f.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const fd = new FormData(f);
+    fd.append('ajax', '1');
+    const r = await fetch(f.action, {method: 'POST', body: fd});
+    const j = await r.json();
+    if (j.ok) {
+      document.getElementById('card-' + id).remove();
+    } else {
+      btn.disabled = false; btn.textContent = 'Save photo';
+      alert(j.error || 'Save failed');
+    }
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

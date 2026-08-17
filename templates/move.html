@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Move photo{% endblock %}
+{% block content %}
+<h1>Move photo</h1>
+<div class="card" style="display:flex;gap:12px;align-items:center">
+  <img class="review-img" src="{{ url_for('uploaded_file', filename=ph.filename) }}">
+  <div>
+    <div class="sub">Currently attached to</div>
+    <a href="{{ url_for('plant_detail', plant_id=plant.id) }}"><b>{{ '#' ~ plant.number ~ ' ' if plant.number }}{{ plant.name or 'Unnamed' }}</b></a>
+    <div class="sub">{{ plant.genus_name or 'Unknown genus' }}</div>
+  </div>
+</div>
+<input type="search" id="q" placeholder="Search plants by number, name, or genus…"
+       autofocus autocomplete="off" style="margin-bottom:10px">
+<div id="results"></div>
+<script>
+const CURRENT = {{ plant.id }};
+const box = document.getElementById('q');
+const res = document.getElementById('results');
+let timer;
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function row(p) {
+  const no = p.number != null ? '#' + p.number : '–';
+  return `<div class="card plant-row">
+    <span class="tagno" style="background:${esc(p.genus_color || '#999')}">${esc(no)}</span>
+    <span class="info">
+      <span class="name">${esc(p.name || 'Unnamed')}</span>
+      <div class="meta">${esc(p.genus_name || 'Unknown genus')}${p.location ? ' · ' + esc(p.location) : ''}
+        · watered ${esc(p.last_watered || 'never')}</div>
+    </span>
+    <form method="post" onsubmit="return confirm('Move photo to ${esc(p.name || 'this plant')}?')">
+      <input type="hidden" name="plant_id" value="${p.id}">
+      <button type="submit">Move to this plant</button>
+    </form>
+  </div>`;
+}
+
+async function run() {
+  const r = await fetch('/api/plants?q=' + encodeURIComponent(box.value.trim()));
+  const list = (await r.json()).filter(p => p.id !== CURRENT);
+  res.innerHTML = list.length ? list.map(row).join('')
+    : '<div class="card sub">No matches.</div>';
+}
+
+box.addEventListener('input', () => {
+  clearTimeout(timer);
+  timer = setTimeout(run, 120);
+});
+run();
+</script>
+{% endblock %}

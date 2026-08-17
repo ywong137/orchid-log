@@ -1,0 +1,10 @@
+.env
+orchid.db
+orchid.db.bak*
+uploads/
+import-log/
+import-pics/
+__pycache__/
+*.pyc
+server.log
+.DS_Store

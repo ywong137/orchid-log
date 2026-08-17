@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Users</h1>
+<div class="card">
+  <ul>
+    {% for u in users %}<li>{{ u.display_name }} ({{ u.username }})</li>{% endfor %}
+  </ul>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">Add user</h2>
+  <form method="post">
+    <label>Username</label><input type="text" name="username" required>
+    <label>Display name</label><input type="text" name="display_name">
+    <label>Password</label><input type="password" name="password" required>
+    <div style="margin-top:12px"><button type="submit">Add</button></div>
+  </form>
+</div>
+{% endblock %}

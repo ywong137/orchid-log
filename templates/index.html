@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<input type="search" id="q" placeholder="Search by number, name, or genus…"
+       autocomplete="off" style="margin-bottom:10px">
+<p class="sub"><span id="count">{{ plants|length }}</span> plant{{ 's' if plants|length != 1 }} · recently active first</p>
+<div id="rows">
+{% for p in plants %}
+<div class="card plant-row" data-num="{{ p.number or '' }}"
+     data-name="{{ (p.name or '')|lower }}" data-genus="{{ (p.genus_name or '')|lower }}">
+  {% if p.thumb %}
+  <a href="{{ url_for('plant_detail', plant_id=p.id) }}">
+    <img class="row-thumb" src="{{ url_for('uploaded_file', filename=p.thumb) }}">
+  </a>
+  {% else %}
+  <a class="tagno" style="background:{{ p.genus_color or '#999' }}"
+     href="{{ url_for('plant_detail', plant_id=p.id) }}">{{ p.number or '–' }}</a>
+  {% endif %}
+  <a class="info" href="{{ url_for('plant_detail', plant_id=p.id) }}">
+    <div class="name">{% if p.number %}<span class="rowno">#{{ p.number }}</span> {% endif %}{{ p.name or 'Unnamed' }}
+      {% if p.recent_blooms %}<span class="badge bloom">blooming</span>{% endif %}
+    </div>
+    <div class="meta">
+      {{ p.genus_name or 'Unknown genus' }}{% if p.location %} · {{ p.location }}{% endif %}
+      · watered {{ p.last_watered or 'never' }} · fertilized {{ p.last_fertilized or 'never' }}
+    </div>
+  </a>
+  <div class="quick">
+    <form method="post" action="{{ url_for('quick_log', plant_id=p.id, action='watered') }}">
+      <button title="Mark watered today">💧</button>
+    </form>
+    <form method="post" action="{{ url_for('quick_log', plant_id=p.id, action='fertilized') }}">
+      <button title="Mark fertilized today">🌱</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+</div>
+<div class="card" id="nomatch" style="display:none">
+  No matches. <a href="{{ url_for('plant_new') }}">Add a plant</a>.
+</div>
+{% if not plants %}
+<div class="card">No plants yet. <a href="{{ url_for('plant_new') }}">Add one</a>.</div>
+{% endif %}
+<script>
+const box = document.getElementById('q');
+const rows = document.querySelectorAll('#rows .plant-row');
+const count = document.getElementById('count');
+const nomatch = document.getElementById('nomatch');
+const total = rows.length;
+
+function filter() {
+  const q = box.value.trim().toLowerCase();
+  let n = 0;
+  rows.forEach(r => {
+    const show = !q
+      || r.dataset.num.startsWith(q)
+      || r.dataset.name.includes(q)
+      || r.dataset.genus.includes(q);
+    r.style.display = show ? '' : 'none';
+    if (show) n++;
+  });
+  count.textContent = n;
+  nomatch.style.display = (total && !n) ? '' : 'none';
+}
+box.addEventListener('input', filter);
+</script>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ 'Edit plant' if plant else 'New plant' }}</h1>
+<div class="card">
+<form method="post" enctype="multipart/form-data">
+  {% if staged_id %}<input type="hidden" name="staged_id" value="{{ staged_id }}">{% endif %}
+  <label>Tag number</label>
+  <input type="number" name="number"
+         value="{{ plant.number or '' if plant else prefill.number }}" placeholder="e.g. 44">
+  <label>Genus</label>
+  <select name="genus_id" id="genusSel">
+    <option value="">—</option>
+    {% for g in genera %}
+    <option value="{{ g.id }}"
+      {{ 'selected' if (plant and plant.genus_id == g.id) or (not plant and prefill.genus_id and prefill.genus_id|int == g.id) }}>
+      {{ g.name }}</option>
+    {% endfor %}
+    <option value="__new__" {{ 'selected' if not plant and prefill.new_genus }}>Add new genus…</option>
+  </select>
+  <div id="newGenusWrap" style="display:none">
+    <label>New genus name</label>
+    <input type="text" name="new_genus" id="newGenus"
+           value="{{ '' if plant else prefill.new_genus }}" placeholder="e.g. Vanda">
+  </div>
+  <label>Name / cultivar</label>
+  <input type="text" name="name" value="{{ plant.name or '' if plant else prefill.name }}"
+         required placeholder="e.g. DTPS Yu Pin Burgundy">
+  <label>Location</label>
+  <input type="text" name="location" value="{{ plant.location or '' if plant else prefill.location or '' }}"
+         placeholder="e.g. R lower shelf">
+  <label>Notes</label>
+  <textarea name="notes" rows="2">{{ plant.notes or '' if plant else prefill.notes or '' }}</textarea>
+
+  {% if not plant %}
+  <label>Photos (optional)</label>
+  <input type="file" name="photos" accept="image/*" multiple>
+  <div class="sub" style="margin-top:4px">
+    {% if staged_id %}The analyzed photo will be attached automatically. {% endif %}
+    No pressure — you can always add photos later from the Photos tab.
+  </div>
+  {% endif %}
+
+  {% if plant %}
+  <h2>Care overrides <span class="sub" style="font-weight:400">(leave blank to use genus defaults)</span></h2>
+  {% for f, lbl in [('sun','Sun'),('water','Spring/summer water'),('fertilize','Spring/summer fertilizer'),
+                    ('medium','Medium'),('trimming','Trimming'),('fall_trim','Fall trim'),
+                    ('fall_water','Fall/winter water'),('fall_fertilize','Fall/winter fertilizer')] %}
+  <label>{{ lbl }}</label>
+  <input type="text" name="{{ f }}" value="{{ plant[f] or '' }}">
+  {% endfor %}
+  {% endif %}
+
+  <div style="margin-top:14px">
+    <button type="submit">{{ 'Save' if plant else 'Add plant' }}</button>
+    <a class="btn ghost" href="{{ url_for('index') }}">Cancel</a>
+  </div>
+</form>
+</div>
+<script>
+const sel = document.getElementById('genusSel');
+const wrap = document.getElementById('newGenusWrap');
+function toggleNew() {
+  wrap.style.display = sel.value === '__new__' ? '' : 'none';
+}
+sel.addEventListener('change', toggleNew);
+toggleNew();
+</script>
+{% endblock %}

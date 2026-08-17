@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Needs review{% endblock %}
+{% block content %}
+<h1>Needs review</h1>
+<p class="sub">These plants have uncertain tag numbers or identities from the log import.
+Check the binder, then mark resolved — flags only clear manually.</p>
+{% for p in plants %}
+<div class="card">
+  <div class="plant-row">
+    <a class="tagno" style="background:{{ p.genus_color or '#999' }}"
+       href="{{ url_for('plant_detail', plant_id=p.id) }}">{{ p.number or '–' }}</a>
+    <a class="info" href="{{ url_for('plant_detail', plant_id=p.id) }}">
+      <div class="name">{{ p.name or 'Unnamed' }}</div>
+      <div class="meta">{{ p.genus_name or 'Unknown genus' }} · {{ p.entry_count }} entries
+        {% if p.last_entry %} · last {{ p.last_entry }}{% endif %}</div>
+      <div class="review-note">⚑ {{ p.review_note or 'Needs review' }}</div>
+    </a>
+    <form method="post" action="{{ url_for('review_clear', plant_id=p.id) }}">
+      <button class="small ghost" type="submit">Mark resolved</button>
+    </form>
+  </div>
+  {% if imgs.get(p.id) %}
+  <div class="review-pages">
+    <div class="meta">Source page photos (tap to zoom):</div>
+    {% for im in imgs[p.id] %}
+    <a href="{{ url_for('review_img_full', name=im) }}" target="_blank">
+      <img src="{{ url_for('review_img', name=im) }}" loading="lazy" alt="{{ im }}">
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% if not plants %}
+<div class="card">All clear — nothing needs review. 🎉</div>
+{% endif %}
+{% endblock %}
